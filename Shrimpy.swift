@@ -61,6 +61,13 @@ func detectTerminalBundleID() -> String? {
 // MARK: - Entry point
 
 let args = CommandLine.arguments
+let kBundleID = "com.shrimpy.notifier"
+
+// Single-instance guard — always exit if another copy is already running
+let _runningApps = NSWorkspace.shared.runningApplications
+let _alreadyRunning = _runningApps.contains {
+    $0.bundleIdentifier == kBundleID && $0.processIdentifier != ProcessInfo.processInfo.processIdentifier
+}
 
 if args.count > 1 {
     let message = args[1]
@@ -78,13 +85,7 @@ if args.count > 1 {
         }
     }
 
-    let bundleID = "com.shrimpy.notifier"
-    let runningApps = NSWorkspace.shared.runningApplications
-    let alreadyRunning = runningApps.contains {
-        $0.bundleIdentifier == bundleID && $0.processIdentifier != ProcessInfo.processInfo.processIdentifier
-    }
-
-    if alreadyRunning {
+    if _alreadyRunning {
         var userInfo: [String: String] = [kNotificationMessageKey: message]
         if let title = customTitle { userInfo[kNotificationTitleKey] = title }
         if let tBundleID = terminalBundleID { userInfo[kTerminalBundleIDKey] = tBundleID }
@@ -102,6 +103,9 @@ if args.count > 1 {
     AppDelegate.initialTitle = customTitle
     AppDelegate.initialTerminalBundleID = terminalBundleID
 }
+
+// If already running as menubar app with no message to send, just exit
+if _alreadyRunning { exit(0) }
 
 // MARK: - App startup
 
@@ -170,7 +174,9 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
         menu.addItem(NSMenuItem.separator())
         menu.addItem(NSMenuItem(title: "Quit", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q"))
 
-        for item in menu.items { item.target = self }
+        for item in menu.items where item.action != #selector(NSApplication.terminate(_:)) {
+            item.target = self
+        }
 
         statusItem?.menu = menu
     }
@@ -206,7 +212,6 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
     func setupUNCenter() {
         let center = UNUserNotificationCenter.current()
         center.delegate = self
-        center.requestAuthorization(options: [.alert, .sound]) { _, _ in }
 
         let openAction = UNNotificationAction(
             identifier: kActionOpen,
@@ -305,16 +310,24 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
             content: content,
             trigger: nil
         )
-        UNUserNotificationCenter.current().add(request, withCompletionHandler: nil)
+        UNUserNotificationCenter.current().add(request) { error in
+            if let error = error {
+                NSLog("Shrimpy: failed to post notification: %@", error.localizedDescription)
+            }
+        }
     }
 }
 
 // MARK: - Settings Window Controller
 
 class SettingsWindowController: NSWindowController {
+    private var notifDot: NSTextField?
+    private var notifLabel: NSTextField?
+    private var notifButton: NSButton?
+
     convenience init() {
         let window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 360, height: 320),
+            contentRect: NSRect(x: 0, y: 0, width: 360, height: 360),
             styleMask: [.titled, .closable],
             backing: .buffered,
             defer: false
@@ -327,35 +340,61 @@ class SettingsWindowController: NSWindowController {
         window.contentView = buildContentView()
     }
 
+    override func showWindow(_ sender: Any?) {
+        super.showWindow(sender)
+        refreshNotificationStatus()
+    }
+
     private func buildContentView() -> NSView {
-        let view = NSView(frame: NSRect(x: 0, y: 0, width: 360, height: 320))
+        let view = NSView(frame: NSRect(x: 0, y: 0, width: 360, height: 360))
 
-        // Status row
+        // App running status row
+        let appDot = NSTextField(labelWithString: "●")
+        appDot.textColor = NSColor.systemGreen
+        appDot.font = NSFont.systemFont(ofSize: 14)
+        appDot.frame = NSRect(x: 20, y: 316, width: 20, height: 20)
+        view.addSubview(appDot)
+
+        let appLabel = NSTextField(labelWithString: "Shrimpy is running")
+        appLabel.font = NSFont.systemFont(ofSize: 13, weight: .medium)
+        appLabel.frame = NSRect(x: 44, y: 316, width: 280, height: 20)
+        view.addSubview(appLabel)
+
+        // Notification permission row
         let dot = NSTextField(labelWithString: "●")
-        dot.textColor = NSColor.systemGreen
         dot.font = NSFont.systemFont(ofSize: 14)
-        dot.frame = NSRect(x: 20, y: 276, width: 20, height: 20)
+        dot.frame = NSRect(x: 20, y: 286, width: 20, height: 20)
         view.addSubview(dot)
+        notifDot = dot
 
-        let statusLabel = NSTextField(labelWithString: "Shrimpy is running")
-        statusLabel.font = NSFont.systemFont(ofSize: 13, weight: .medium)
-        statusLabel.frame = NSRect(x: 44, y: 276, width: 280, height: 20)
-        view.addSubview(statusLabel)
+        let notifLbl = NSTextField(labelWithString: "Notifications: checking…")
+        notifLbl.font = NSFont.systemFont(ofSize: 13)
+        notifLbl.frame = NSRect(x: 44, y: 286, width: 180, height: 20)
+        view.addSubview(notifLbl)
+        notifLabel = notifLbl
+
+        let notifBtn = NSButton(title: "", target: self, action: #selector(notifButtonTapped))
+        notifBtn.bezelStyle = .rounded
+        notifBtn.font = NSFont.systemFont(ofSize: 12)
+        notifBtn.frame = NSRect(x: 234, y: 282, width: 106, height: 26)
+        notifBtn.isHidden = true
+        view.addSubview(notifBtn)
+        notifButton = notifBtn
 
         // Separator
         let separator = NSBox()
         separator.boxType = .separator
-        separator.frame = NSRect(x: 20, y: 262, width: 320, height: 1)
+        separator.frame = NSRect(x: 20, y: 268, width: 320, height: 1)
         view.addSubview(separator)
 
         // Sound label + picker
         let soundLabel = NSTextField(labelWithString: "Notification Sound:")
         soundLabel.font = NSFont.systemFont(ofSize: 13)
-        soundLabel.frame = NSRect(x: 20, y: 224, width: 140, height: 20)
+        soundLabel.frame = NSRect(x: 20, y: 230, width: 140, height: 20)
         view.addSubview(soundLabel)
 
         let sounds = ["Glass", "Tink", "Ping", "Pop", "Purr", "Basso", "Blow", "Bottle", "Frog", "Funk", "Hero", "Morse", "Sosumi", "Submarine"]
-        let picker = NSPopUpButton(frame: NSRect(x: 165, y: 220, width: 175, height: 26))
+        let picker = NSPopUpButton(frame: NSRect(x: 165, y: 226, width: 175, height: 26))
         picker.addItems(withTitles: sounds)
         let currentSound = UserDefaults.standard.string(forKey: kSoundKey) ?? "Glass"
         picker.selectItem(withTitle: currentSound)
@@ -366,7 +405,7 @@ class SettingsWindowController: NSWindowController {
         // Launch at Login checkbox
         if #available(macOS 13.0, *) {
             let checkbox = NSButton(checkboxWithTitle: "Launch at Login", target: self, action: #selector(launchAtLoginToggled(_:)))
-            checkbox.frame = NSRect(x: 20, y: 184, width: 260, height: 20)
+            checkbox.frame = NSRect(x: 20, y: 190, width: 260, height: 20)
             checkbox.state = SMAppService.mainApp.status == .enabled ? .on : .off
             view.addSubview(checkbox)
         }
@@ -374,23 +413,51 @@ class SettingsWindowController: NSWindowController {
         // Test button
         let testButton = NSButton(title: "Test Notification", target: self, action: #selector(testTapped))
         testButton.bezelStyle = .rounded
-        testButton.frame = NSRect(x: 20, y: 144, width: 160, height: 28)
+        testButton.frame = NSRect(x: 20, y: 150, width: 160, height: 28)
         view.addSubview(testButton)
 
         // History button
         let historyButton = NSButton(title: "Notification History…", target: self, action: #selector(historyTapped))
         historyButton.bezelStyle = .rounded
-        historyButton.frame = NSRect(x: 20, y: 104, width: 200, height: 28)
+        historyButton.frame = NSRect(x: 20, y: 110, width: 200, height: 28)
         view.addSubview(historyButton)
 
         // Info text
-        let info = NSTextField(wrappingLabelWithString: "Hook invocations post to this running instance. Launch once via 'open ~/.claude/Shrimpy.app' and it persists in your menubar.")
+        let info = NSTextField(wrappingLabelWithString: "Hook invocations post to this running instance. Launch once via 'open /Applications/Shrimpy.app' and it persists in your menubar.")
         info.font = NSFont.systemFont(ofSize: 11)
         info.textColor = NSColor.tertiaryLabelColor
         info.frame = NSRect(x: 20, y: 16, width: 320, height: 72)
         view.addSubview(info)
 
         return view
+    }
+
+    func refreshNotificationStatus() {
+        UNUserNotificationCenter.current().getNotificationSettings { [weak self] settings in
+            DispatchQueue.main.async { self?.applyNotifStatus(settings.authorizationStatus) }
+        }
+    }
+
+    private func applyNotifStatus(_ status: UNAuthorizationStatus) {
+        switch status {
+        case .authorized:
+            notifDot?.textColor = .systemGreen
+            notifLabel?.stringValue = "Notifications: Allowed"
+            notifButton?.isHidden = true
+        default:
+            notifDot?.textColor = .systemOrange
+            notifLabel?.stringValue = "Notifications: Not allowed"
+            notifButton?.title = "Open Settings"
+            notifButton?.isHidden = false
+        }
+    }
+
+    @objc func notifButtonTapped() {
+        // Register the app with the notification system, then send user to System Settings
+        UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound]) { [weak self] _, _ in
+            DispatchQueue.main.async { self?.refreshNotificationStatus() }
+        }
+        NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.preference.notifications")!)
     }
 
     @objc func soundChanged(_ sender: NSPopUpButton) {
