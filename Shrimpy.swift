@@ -148,7 +148,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
 
         if let button = statusItem?.button {
-            if let iconURL = Bundle.main.url(forResource: "Claude", withExtension: "icns"),
+            if let iconURL = Bundle.main.url(forResource: "Shrimpy", withExtension: "icns"),
                let image = NSImage(contentsOf: iconURL) {
                 image.size = NSSize(width: 18, height: 18)
                 image.isTemplate = true
