@@ -13,6 +13,7 @@ Shrimpy lives in your menubar and fires a macOS notification whenever Claude Cod
 - Menubar icon with right-click menu
 - macOS notifications with configurable sound
 - "Open Terminal" action on notifications — focuses whichever terminal sent the request
+- Auto-syncs `~/.claude/settings.json` Notification hook on launch
 - Mute toggle
 - Notification history (last 50)
 - Launch at Login (macOS 13+)
@@ -39,9 +40,9 @@ open ~/.claude/Shrimpy.app
 
 Shrimpy will ask for notification permissions on first launch. Enable **Launch at Login** in Settings so it starts automatically.
 
-### 3. Wire up the Claude Code hook
+### 3. Claude Code hook setup
 
-Add to your `~/.claude/settings.json` (or project-level `CLAUDE.md` hooks):
+Shrimpy now auto-installs/repairs this hook in `~/.claude/settings.json` at launch:
 
 ```json
 {
@@ -61,10 +62,10 @@ Add to your `~/.claude/settings.json` (or project-level `CLAUDE.md` hooks):
 }
 ```
 
-Or call it directly from a shell hook:
+Manual equivalent command:
 
 ```bash
-~/.claude/Shrimpy.app/Contents/MacOS/Shrimpy "Claude needs input" --title "My Project"
+open -gj ~/.claude/Shrimpy.app --args "Claude needs input" --title "My Project"
 ```
 
 ## Menu

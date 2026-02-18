@@ -3,6 +3,18 @@ APP_BUNDLE = $(APP_NAME).app
 INSTALL_DIR = /Applications
 SRC = Shrimpy.swift
 BINARY = $(APP_BUNDLE)/Contents/MacOS/$(APP_NAME)
+XCODE_DEV_DIR = /Applications/Xcode.app/Contents/Developer
+SWIFTC = xcrun swiftc
+BUILD_DIR = .build
+BUILD_TMP = $(BUILD_DIR)/tmp
+BUILD_MODULE_CACHE = $(BUILD_DIR)/module-cache
+
+ifneq ("$(wildcard $(XCODE_DEV_DIR))","")
+export DEVELOPER_DIR ?= $(XCODE_DEV_DIR)
+endif
+
+export CLANG_MODULE_CACHE_PATH ?= $(CURDIR)/$(BUILD_MODULE_CACHE)
+export TMPDIR ?= $(CURDIR)/$(BUILD_TMP)/
 
 .PHONY: all build install clean
 
@@ -11,9 +23,11 @@ all: build
 build: $(BINARY)
 
 $(BINARY): $(SRC)
+	mkdir -p $(BUILD_TMP)
+	mkdir -p $(BUILD_MODULE_CACHE)
 	mkdir -p $(APP_BUNDLE)/Contents/MacOS
 	mkdir -p $(APP_BUNDLE)/Contents/Resources
-	swiftc $(SRC) -o $(BINARY) -framework AppKit -framework UserNotifications -framework ServiceManagement
+	$(SWIFTC) $(SRC) -o $(BINARY) -framework AppKit -framework UserNotifications -framework ServiceManagement
 	@printf '<?xml version="1.0" encoding="UTF-8"?>\n\
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">\n\
 <plist version="1.0"><dict>\n\

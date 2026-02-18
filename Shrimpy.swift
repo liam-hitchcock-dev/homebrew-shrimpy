@@ -1,6 +1,7 @@
 import AppKit
 import UserNotifications
 import ServiceManagement
+import Darwin
 
 // MARK: - Constants
 
@@ -12,6 +13,16 @@ let kSuiteName = "com.shrimpy.notifier"
 let kSoundKey = "notificationSound"
 let kCategoryID = "SHRIMPY_NOTIFY"
 let kActionOpen = "ACTION_OPEN"
+let kClaudeSettingsRelativePath = ".claude/settings.json"
+
+func shellSingleQuoted(_ value: String) -> String {
+    return "'" + value.replacingOccurrences(of: "'", with: "'\\''") + "'"
+}
+
+func currentClaudeHookCommand() -> String {
+    let appPath = Bundle.main.bundlePath
+    return "open -gj \(shellSingleQuoted(appPath)) --args \"$CLAUDE_NOTIFICATION_TITLE\""
+}
 
 // MARK: - Notification History
 
@@ -62,12 +73,28 @@ func detectTerminalBundleID() -> String? {
 
 let args = CommandLine.arguments
 let kBundleID = "com.shrimpy.notifier"
+let kInstanceLockPath = "/tmp/com.shrimpy.notifier.lock"
 
-// Single-instance guard — always exit if another copy is already running
+func acquireInstanceLock() -> Int32? {
+    let fd = open(kInstanceLockPath, O_CREAT | O_RDWR, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH)
+    guard fd != -1 else { return nil }
+    if flock(fd, LOCK_EX | LOCK_NB) == 0 {
+        return fd
+    }
+    close(fd)
+    return nil
+}
+
+// Single-instance guard: use a lock file so duplicate launches from either
+// app bundle or raw binary path cannot create a second menubar icon.
+let _instanceLockFD = acquireInstanceLock()
+
+// Fallback bundle check kept for compatibility with older versions.
 let _runningApps = NSWorkspace.shared.runningApplications
-let _alreadyRunning = _runningApps.contains {
+let _alreadyRunningByBundleID = _runningApps.contains {
     $0.bundleIdentifier == kBundleID && $0.processIdentifier != ProcessInfo.processInfo.processIdentifier
 }
+let _alreadyRunning = (_instanceLockFD == nil) || _alreadyRunningByBundleID
 
 if args.count > 1 {
     let message = args[1]
@@ -135,6 +162,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
         setupStatusItem()
         setupUNCenter()
         setupDistributedListener()
+        ensureClaudeNotificationHookInstalled()
 
         if let message = AppDelegate.initialMessage {
             lastTerminalBundleID = AppDelegate.initialTerminalBundleID
@@ -179,6 +207,96 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
         }
 
         statusItem?.menu = menu
+    }
+
+    // MARK: - Claude Hook Sync
+
+    func ensureClaudeNotificationHookInstalled() {
+        let settingsURL = URL(fileURLWithPath: NSHomeDirectory()).appendingPathComponent(kClaudeSettingsRelativePath)
+        let fm = FileManager.default
+        let hookCommand = currentClaudeHookCommand()
+
+        do {
+            try fm.createDirectory(
+                at: settingsURL.deletingLastPathComponent(),
+                withIntermediateDirectories: true
+            )
+        } catch {
+            NSLog("Shrimpy: failed to create ~/.claude directory: %@", error.localizedDescription)
+            return
+        }
+
+        var root: [String: Any] = [:]
+        if fm.fileExists(atPath: settingsURL.path) {
+            do {
+                let data = try Data(contentsOf: settingsURL)
+                if !data.isEmpty {
+                    guard let parsed = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+                        NSLog("Shrimpy: ~/.claude/settings.json is not a JSON object; skipping hook sync")
+                        return
+                    }
+                    root = parsed
+                }
+            } catch {
+                NSLog("Shrimpy: failed to parse ~/.claude/settings.json: %@", error.localizedDescription)
+                return
+            }
+        }
+
+        var hooks = (root["hooks"] as? [String: Any]) ?? [:]
+        let notificationRules = (hooks["Notification"] as? [[String: Any]]) ?? []
+
+        let commandHook: [String: Any] = [
+            "type": "command",
+            "command": hookCommand
+        ]
+
+        var changed = false
+        var updatedRules: [[String: Any]] = []
+        var injected = false
+
+        for var rule in notificationRules {
+            let matcher = (rule["matcher"] as? String) ?? ""
+            var hookItems = (rule["hooks"] as? [[String: Any]]) ?? []
+
+            let hasCommand = hookItems.contains {
+                ($0["type"] as? String) == "command" &&
+                ($0["command"] as? String) == hookCommand
+            }
+
+            if matcher == "" && !hasCommand {
+                hookItems.append(commandHook)
+                rule["hooks"] = hookItems
+                changed = true
+                injected = true
+            } else if matcher == "" && hasCommand {
+                injected = true
+            }
+
+            updatedRules.append(rule)
+        }
+
+        if !injected {
+            updatedRules.append([
+                "matcher": "",
+                "hooks": [commandHook]
+            ])
+            changed = true
+        }
+
+        if !changed {
+            return
+        }
+
+        hooks["Notification"] = updatedRules
+        root["hooks"] = hooks
+
+        do {
+            let out = try JSONSerialization.data(withJSONObject: root, options: [.prettyPrinted, .sortedKeys])
+            try out.write(to: settingsURL, options: .atomic)
+        } catch {
+            NSLog("Shrimpy: failed to write ~/.claude/settings.json: %@", error.localizedDescription)
+        }
     }
 
     @objc func openSettings() {
