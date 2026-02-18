@@ -4,13 +4,13 @@ import ServiceManagement
 
 // MARK: - Constants
 
-let kNotificationName = "com.claudecode.notify"
+let kNotificationName = "com.shrimpy.notify"
 let kNotificationMessageKey = "message"
 let kNotificationTitleKey = "title"
 let kTerminalBundleIDKey = "terminalBundleID"
-let kSuiteName = "com.claudecode.notifier"
+let kSuiteName = "com.shrimpy.notifier"
 let kSoundKey = "notificationSound"
-let kCategoryID = "CLAUDE_NOTIFY"
+let kCategoryID = "SHRIMPY_NOTIFY"
 let kActionOpen = "ACTION_OPEN"
 
 // MARK: - Notification History
@@ -78,7 +78,7 @@ if args.count > 1 {
         }
     }
 
-    let bundleID = "com.claudecode.notifier"
+    let bundleID = "com.shrimpy.notifier"
     let runningApps = NSWorkspace.shared.runningApplications
     let alreadyRunning = runningApps.contains {
         $0.bundleIdentifier == bundleID && $0.processIdentifier != ProcessInfo.processInfo.processIdentifier
@@ -154,7 +154,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
                 image.isTemplate = true
                 button.image = image
             } else {
-                button.title = "C"
+                button.title = "🦐"
             }
         }
 
@@ -286,7 +286,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
         let soundName = UserDefaults.standard.string(forKey: kSoundKey) ?? "Glass"
         playSound(named: soundName)
 
-        let resolvedTitle = title ?? "Claude Code"
+        let resolvedTitle = title ?? "Shrimpy"
 
         // Prepend to history, cap at 50
         let entry = NotificationHistoryEntry(message: message, title: resolvedTitle, timestamp: Date())
@@ -319,7 +319,7 @@ class SettingsWindowController: NSWindowController {
             backing: .buffered,
             defer: false
         )
-        window.title = "ClaudeNotify Settings"
+        window.title = "Shrimpy Settings"
         window.isReleasedWhenClosed = false
         window.center()
 
@@ -337,7 +337,7 @@ class SettingsWindowController: NSWindowController {
         dot.frame = NSRect(x: 20, y: 276, width: 20, height: 20)
         view.addSubview(dot)
 
-        let statusLabel = NSTextField(labelWithString: "ClaudeNotify is running")
+        let statusLabel = NSTextField(labelWithString: "Shrimpy is running")
         statusLabel.font = NSFont.systemFont(ofSize: 13, weight: .medium)
         statusLabel.frame = NSRect(x: 44, y: 276, width: 280, height: 20)
         view.addSubview(statusLabel)
@@ -384,7 +384,7 @@ class SettingsWindowController: NSWindowController {
         view.addSubview(historyButton)
 
         // Info text
-        let info = NSTextField(wrappingLabelWithString: "Hook invocations post to this running instance. Launch once via 'open ~/.claude/ClaudeNotify.app' and it persists in your menubar.")
+        let info = NSTextField(wrappingLabelWithString: "Hook invocations post to this running instance. Launch once via 'open ~/.claude/Shrimpy.app' and it persists in your menubar.")
         info.font = NSFont.systemFont(ofSize: 11)
         info.textColor = NSColor.tertiaryLabelColor
         info.frame = NSRect(x: 20, y: 16, width: 320, height: 72)
