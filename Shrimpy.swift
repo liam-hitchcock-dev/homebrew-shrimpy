@@ -19,9 +19,30 @@ func shellSingleQuoted(_ value: String) -> String {
     return "'" + value.replacingOccurrences(of: "'", with: "'\\''") + "'"
 }
 
+func shrimpyHookScriptPath() -> String {
+    return NSHomeDirectory() + "/.claude/shrimpy-hook.py"
+}
+
 func currentClaudeHookCommand() -> String {
+    return "python3 \(shrimpyHookScriptPath())"
+}
+
+func writeHookScript() {
     let binaryPath = Bundle.main.bundlePath + "/Contents/MacOS/Shrimpy"
-    return "\(shellSingleQuoted(binaryPath)) \"Claude needs your attention\" --title \"$(basename \"$CLAUDE_PROJECT_DIR\")\""
+    let script = """
+#!/usr/bin/env python3
+import sys, json, os, subprocess
+data = json.load(sys.stdin)
+m = data.get('message', '')
+t = os.path.basename(data.get('cwd', ''))
+keywords = ['waiting', 'input', 'permission', 'approval', 'approve', 'allow', 'required', 'requires']
+if not any(kw in m.lower() for kw in keywords):
+    sys.exit(0)
+subprocess.run(['\(binaryPath)', m or 'Claude needs your input', '--title', t or 'Claude'])
+"""
+    let path = shrimpyHookScriptPath()
+    try? script.write(toFile: path, atomically: true, encoding: .utf8)
+    try? FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: path)
 }
 
 // MARK: - Notification History
@@ -214,6 +235,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
     // MARK: - Claude Hook Sync
 
     func ensureClaudeNotificationHookInstalled() {
+        writeHookScript()
         let settingsURL = URL(fileURLWithPath: NSHomeDirectory()).appendingPathComponent(kClaudeSettingsRelativePath)
         let fm = FileManager.default
         let hookCommand = currentClaudeHookCommand()
@@ -261,10 +283,10 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
             let matcher = (rule["matcher"] as? String) ?? ""
             var hookItems = (rule["hooks"] as? [[String: Any]]) ?? []
 
-            // Remove any stale Shrimpy commands (different path or old open -gj format)
+            // Remove any stale Shrimpy hook commands
             let filtered = hookItems.filter { item in
                 guard let cmd = item["command"] as? String else { return true }
-                return !cmd.contains("Shrimpy.app")
+                return !cmd.contains("Shrimpy.app") && !cmd.contains("shrimpy-hook.py")
             }
             if filtered.count != hookItems.count {
                 hookItems = filtered
