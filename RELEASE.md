@@ -68,7 +68,7 @@ GitHub Actions will:
 ## 5. Verify
 
 ```bash
-brew tap liam-hitchcock-dev/shrimpy https://github.com/liam-hitchcock-dev/shrimpy
+brew tap liam-hitchcock-dev/shrimpy
 brew install --cask shrimpy
 ```
 

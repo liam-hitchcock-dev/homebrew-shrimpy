@@ -26,7 +26,7 @@ Shrimpy lives in your menubar and fires a macOS notification whenever Claude Cod
 ### Via Homebrew (recommended)
 
 ```bash
-brew tap liam-hitchcock-dev/shrimpy https://github.com/liam-hitchcock-dev/shrimpy
+brew tap liam-hitchcock-dev/shrimpy
 brew install --cask shrimpy
 ```
 

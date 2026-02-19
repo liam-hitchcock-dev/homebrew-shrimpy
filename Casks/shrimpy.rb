@@ -2,10 +2,10 @@ cask "shrimpy" do
   version "1.0.0"
   sha256 "<fill in after first release>"
 
-  url "https://github.com/liam-hitchcock-dev/shrimpy/releases/download/v#{version}/Shrimpy-#{version}.zip"
+  url "https://github.com/liam-hitchcock-dev/homebrew-shrimpy/releases/download/v#{version}/Shrimpy-#{version}.zip"
   name "Shrimpy"
   desc "macOS menubar notifier for Claude Code"
-  homepage "https://github.com/liam-hitchcock-dev/shrimpy"
+  homepage "https://github.com/liam-hitchcock-dev/homebrew-shrimpy"
 
   app "Shrimpy.app"
 
