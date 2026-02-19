@@ -1,0 +1,110 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  release:
+    runs-on: macos-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Import Developer ID certificate
+        env:
+          CERT_P12_BASE64: ${{ secrets.DEVELOPER_ID_CERT_P12 }}
+          CERT_PASSWORD: ${{ secrets.DEVELOPER_ID_CERT_PASSWORD }}
+        run: |
+          KEYCHAIN_PATH=$RUNNER_TEMP/build.keychain
+          CERT_PATH=$RUNNER_TEMP/cert.p12
+
+          echo "$CERT_P12_BASE64" | base64 --decode -o "$CERT_PATH"
+
+          security create-keychain -p "" "$KEYCHAIN_PATH"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+          security unlock-keychain -p "" "$KEYCHAIN_PATH"
+          security import "$CERT_PATH" -k "$KEYCHAIN_PATH" -P "$CERT_PASSWORD" -T /usr/bin/codesign
+          security list-keychain -d user -s "$KEYCHAIN_PATH"
+          security set-key-partition-list -S apple-tool:,apple: -s -k "" "$KEYCHAIN_PATH"
+
+      - name: Build
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          mkdir -p Shrimpy.app/Contents/MacOS
+          mkdir -p Shrimpy.app/Contents/Resources
+          xcrun swiftc Shrimpy.swift -o Shrimpy.app/Contents/MacOS/Shrimpy \
+            -framework AppKit -framework UserNotifications -framework ServiceManagement
+          printf '<?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0"><dict>
+              <key>CFBundleExecutable</key><string>Shrimpy</string>
+              <key>CFBundleIdentifier</key><string>com.shrimpy.notifier</string>
+              <key>CFBundleName</key><string>Shrimpy</string>
+              <key>CFBundleVersion</key><string>%s</string>
+              <key>CFBundleShortVersionString</key><string>%s</string>
+              <key>CFBundleIconFile</key><string>Shrimpy</string>
+              <key>NSPrincipalClass</key><string>NSApplication</string>
+              <key>LSUIElement</key><true/>
+          </dict></plist>' "$VERSION" "$VERSION" > Shrimpy.app/Contents/Info.plist
+          cp Shrimpy.icns Shrimpy.app/Contents/Resources/Shrimpy.icns
+          cp ShrimpyBar.png Shrimpy.app/Contents/Resources/
+          cp "ShrimpyBar@2x.png" Shrimpy.app/Contents/Resources/
+
+      - name: Sign
+        env:
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          codesign --force --deep --options runtime \
+            --sign "Developer ID Application: Liam Hitchcock ($APPLE_TEAM_ID)" \
+            Shrimpy.app
+
+      - name: Notarize
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          ditto -c -k --sequesterRsrc --keepParent Shrimpy.app "Shrimpy-${VERSION}.zip"
+          xcrun notarytool submit "Shrimpy-${VERSION}.zip" \
+            --apple-id "$APPLE_ID" \
+            --team-id "$APPLE_TEAM_ID" \
+            --password "$APPLE_APP_SPECIFIC_PASSWORD" \
+            --wait
+          xcrun stapler staple Shrimpy.app
+
+      - name: Package and compute SHA256
+        id: package
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          ditto -c -k --sequesterRsrc --keepParent Shrimpy.app "Shrimpy-${VERSION}.zip"
+          SHA256=$(shasum -a 256 "Shrimpy-${VERSION}.zip" | awk '{print $1}')
+          echo "sha256=$SHA256" >> "$GITHUB_OUTPUT"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "zip=Shrimpy-${VERSION}.zip" >> "$GITHUB_OUTPUT"
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ${{ steps.package.outputs.zip }}
+          body: |
+            SHA256: `${{ steps.package.outputs.sha256 }}`
+
+      - name: Update Homebrew tap
+        env:
+          TAP_REPO_TOKEN: ${{ secrets.TAP_REPO_TOKEN }}
+          SHA256: ${{ steps.package.outputs.sha256 }}
+          VERSION: ${{ steps.package.outputs.version }}
+        run: |
+          gh api \
+            --method POST \
+            -H "Authorization: token $TAP_REPO_TOKEN" \
+            /repos/liam-hitchcock-dev/homebrew-shrimpy/dispatches \
+            -f event_type=update-formula \
+            -f client_payload[version]="$VERSION" \
+            -f client_payload[sha256]="$SHA256"

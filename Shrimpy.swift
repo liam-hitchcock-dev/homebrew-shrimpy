@@ -199,6 +199,8 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
 
         menu.addItem(NSMenuItem(title: "Notification History", action: #selector(openHistory), keyEquivalent: ""))
         menu.addItem(NSMenuItem(title: "Test Notification", action: #selector(testNotification), keyEquivalent: ""))
+        let supportItem = NSMenuItem(title: "Support Shrimpy ☕", action: #selector(openSupport), keyEquivalent: "")
+        menu.addItem(supportItem)
         menu.addItem(NSMenuItem.separator())
         menu.addItem(NSMenuItem(title: "Quit", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q"))
 
@@ -323,6 +325,10 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
     @objc func toggleMute() {
         muted = !muted
         muteMenuItem?.title = muted ? "Unmute Notifications" : "Mute Notifications"
+    }
+
+    @objc func openSupport() {
+        NSWorkspace.shared.open(URL(string: "https://buymeacoffee.com/liam.hitchcock")!)
     }
 
     // MARK: - UNUserNotificationCenter

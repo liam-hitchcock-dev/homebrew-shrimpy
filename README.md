@@ -1,5 +1,7 @@
 # Shrimpy 🦐
 
+[![Buy Me a Coffee](https://img.shields.io/badge/Buy%20Me%20a%20Coffee-☕-yellow)](https://buymeacoffee.com/liam.hitchcock)
+
 A tiny macOS menubar app that notifies you when [Claude Code](https://claude.ai/code) needs your input.
 
 ## What it does
@@ -21,21 +23,31 @@ Shrimpy lives in your menubar and fires a macOS notification whenever Claude Cod
 
 ## Installation
 
-### 1. Build the app
+### Via Homebrew (recommended)
 
 ```bash
-swiftc Shrimpy.swift -o Shrimpy \
-  -framework AppKit \
-  -framework UserNotifications \
-  -framework ServiceManagement
+brew tap liam-hitchcock-dev/shrimpy
+brew install --cask shrimpy
 ```
 
-Then wrap it as an `.app` bundle and place it somewhere permanent, e.g. `~/.claude/Shrimpy.app`.
+### Manual build
 
-### 2. Launch it
+Build and install to `/Applications`:
 
 ```bash
-open ~/.claude/Shrimpy.app
+make install
+```
+
+Or build only (outputs `Shrimpy.app` in the repo directory):
+
+```bash
+make build
+```
+
+Then launch it:
+
+```bash
+open /Applications/Shrimpy.app
 ```
 
 Shrimpy will ask for notification permissions on first launch. Enable **Launch at Login** in Settings so it starts automatically.
@@ -76,6 +88,7 @@ open -gj ~/.claude/Shrimpy.app --args "Claude needs input" --title "My Project"
 | Mute Notifications | Silence all notifications until toggled back |
 | Notification History | Scrollable table of recent notifications |
 | Test Notification | Fire a test notification immediately |
+| Support Shrimpy ☕ | Opens Buy Me a Coffee page |
 | Quit | Exit Shrimpy |
 
 ## Supported terminals
@@ -91,3 +104,25 @@ Shrimpy walks the process tree to find which terminal launched Claude Code and f
 - Alacritty
 - GoLand
 - Xcode
+
+## Codex wrapper setup
+
+Use the provided wrapper so Codex sessions notify via Shrimpy:
+
+```bash
+chmod +x scripts/codex-notify.sh
+make codex ARGS='your codex args here'
+```
+
+Config lives in `config/codex-notify.conf`:
+
+- `ENABLE_NOTIFY=1` to enable (or `0` to disable)
+- `SHRIMPY_APP_PATH` for where Shrimpy is installed
+- `CODEX_BIN` for the Codex executable name/path
+- `PROJECT_TITLE` for notification title text
+
+Send a test notification without running Codex:
+
+```bash
+make codex-notify-test
+```
