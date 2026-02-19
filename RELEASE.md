@@ -43,67 +43,12 @@ In the `shrimpy` repo settings → **Secrets and variables** → **Actions**, ad
 | `APPLE_ID` | your Apple ID email |
 | `APPLE_APP_SPECIFIC_PASSWORD` | app-specific password from step 2 |
 | `APPLE_TEAM_ID` | `C88QPDDXK4` |
-| `TAP_REPO_TOKEN` | GitHub PAT with write access to `homebrew-shrimpy` repo |
+
+> No separate tap repo needed — `Casks/shrimpy.rb` lives in the main `shrimpy` repo and the release workflow updates it automatically.
 
 ---
 
-## 4. Create the Homebrew Tap Repo
-
-1. Create a new GitHub repo: `liam-hitchcock-dev/homebrew-shrimpy`
-2. Add the file `Casks/shrimpy.rb` (see template below — fill in SHA256 after first release)
-
-```ruby
-cask "shrimpy" do
-  version "1.0.0"
-  sha256 "<fill in after first release>"
-
-  url "https://github.com/liam-hitchcock-dev/shrimpy/releases/download/v#{version}/Shrimpy-#{version}.zip"
-  name "Shrimpy"
-  desc "macOS menubar notifier for Claude Code"
-  homepage "https://github.com/liam-hitchcock-dev/shrimpy"
-
-  app "Shrimpy.app"
-
-  postflight do
-    system_command "/usr/bin/open",
-                   args: ["-gj", "#{appdir}/Shrimpy.app"]
-  end
-end
-```
-
-3. Add a `repository_dispatch` workflow so the main release workflow can update it automatically:
-
-   `.github/workflows/update-formula.yml`:
-   ```yaml
-   name: Update Formula
-
-   on:
-     repository_dispatch:
-       types: [update-formula]
-
-   jobs:
-     update:
-       runs-on: ubuntu-latest
-       steps:
-         - uses: actions/checkout@v4
-         - name: Update shrimpy.rb
-           run: |
-             VERSION="${{ github.event.client_payload.version }}"
-             SHA256="${{ github.event.client_payload.sha256 }}"
-             sed -i "s/version \".*\"/version \"$VERSION\"/" Casks/shrimpy.rb
-             sed -i "s/sha256 \".*\"/sha256 \"$SHA256\"/" Casks/shrimpy.rb
-         - name: Commit and push
-           run: |
-             git config user.name "github-actions[bot]"
-             git config user.email "github-actions[bot]@users.noreply.github.com"
-             git add Casks/shrimpy.rb
-             git commit -m "Update Shrimpy to v${{ github.event.client_payload.version }}"
-             git push
-   ```
-
----
-
-## 5. Cut a Release
+## 4. Cut a Release
 
 ```bash
 git tag v1.0.0
@@ -116,14 +61,14 @@ GitHub Actions will:
 3. Notarize + staple
 4. Zip and compute SHA256
 5. Create a GitHub Release with the zip attached
-6. Dispatch to the tap repo to update `shrimpy.rb`
+6. Update `Casks/shrimpy.rb` with the new version and SHA256, commit to master
 
 ---
 
-## 6. Verify
+## 5. Verify
 
 ```bash
-brew tap liam-hitchcock-dev/shrimpy
+brew tap liam-hitchcock-dev/shrimpy https://github.com/liam-hitchcock-dev/shrimpy
 brew install --cask shrimpy
 ```
 

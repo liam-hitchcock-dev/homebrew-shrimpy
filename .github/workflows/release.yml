@@ -95,16 +95,17 @@ jobs:
           body: |
             SHA256: `${{ steps.package.outputs.sha256 }}`
 
-      - name: Update Homebrew tap
+      - name: Update Homebrew cask formula
         env:
-          TAP_REPO_TOKEN: ${{ secrets.TAP_REPO_TOKEN }}
           SHA256: ${{ steps.package.outputs.sha256 }}
           VERSION: ${{ steps.package.outputs.version }}
         run: |
-          gh api \
-            --method POST \
-            -H "Authorization: token $TAP_REPO_TOKEN" \
-            /repos/liam-hitchcock-dev/homebrew-shrimpy/dispatches \
-            -f event_type=update-formula \
-            -f client_payload[version]="$VERSION" \
-            -f client_payload[sha256]="$SHA256"
+          git fetch origin master
+          git checkout master
+          sed -i '' "s/version \".*\"/version \"$VERSION\"/" Casks/shrimpy.rb
+          sed -i '' "s/sha256 \".*\"/sha256 \"$SHA256\"/" Casks/shrimpy.rb
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add Casks/shrimpy.rb
+          git commit -m "Update cask to v$VERSION"
+          git push origin master
