@@ -61,11 +61,11 @@ Shrimpy now auto-installs/repairs this hook in `~/.claude/settings.json` at laun
   "hooks": {
     "Notification": [
       {
-        "matcher": "",
+        "matcher": "^(permission_prompt|idle_prompt)$",
         "hooks": [
           {
             "type": "command",
-            "command": "open -gj ~/.claude/Shrimpy.app --args \"$CLAUDE_NOTIFICATION_TITLE\""
+            "command": "python3 ~/.claude/shrimpy-hook.py"
           }
         ]
       }
@@ -73,6 +73,8 @@ Shrimpy now auto-installs/repairs this hook in `~/.claude/settings.json` at laun
   }
 }
 ```
+
+This matcher filters on `notification_type`, so Shrimpy only runs for actionable prompts.
 
 Manual equivalent command:
 

@@ -37,7 +37,7 @@ jobs:
           VERSION="${GITHUB_REF_NAME#v}"
           mkdir -p Shrimpy.app/Contents/MacOS
           mkdir -p Shrimpy.app/Contents/Resources
-          xcrun swiftc Shrimpy.swift -o Shrimpy.app/Contents/MacOS/Shrimpy \
+          xcrun swiftc Sources/*.swift -o Shrimpy.app/Contents/MacOS/Shrimpy \
             -framework AppKit -framework UserNotifications -framework ServiceManagement
           printf '<?xml version="1.0" encoding="UTF-8"?>
           <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">

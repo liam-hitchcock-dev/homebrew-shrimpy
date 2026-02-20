@@ -1,7 +1,7 @@
 APP_NAME = Shrimpy
 APP_BUNDLE = $(APP_NAME).app
 INSTALL_DIR = /Applications
-SRC = Shrimpy.swift
+SRC = $(wildcard Sources/*.swift)
 BINARY = $(APP_BUNDLE)/Contents/MacOS/$(APP_NAME)
 VERSION = 1.0.0
 DEVELOPER_ID ?= Developer ID Application: Liam Hitchcock (C88QPDDXK4)
@@ -20,7 +20,7 @@ endif
 export CLANG_MODULE_CACHE_PATH ?= $(CURDIR)/$(BUILD_MODULE_CACHE)
 export TMPDIR ?= $(CURDIR)/$(BUILD_TMP)/
 
-.PHONY: all build install sign notarize release clean codex codex-notify-test
+.PHONY: all build install sign notarize release clean codex codex-notify-test dev-restart
 
 all: build
 
@@ -81,3 +81,11 @@ codex:
 
 codex-notify-test:
 	./scripts/codex-notify.sh --test
+
+dev-restart: build
+	rm -rf $(INSTALL_DIR)/$(APP_BUNDLE)
+	cp -R $(APP_BUNDLE) $(INSTALL_DIR)/$(APP_BUNDLE)
+	codesign --force --deep --sign - $(INSTALL_DIR)/$(APP_BUNDLE)
+	/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister -f $(INSTALL_DIR)/$(APP_BUNDLE)
+	killall Shrimpy || true
+	open -gj $(INSTALL_DIR)/$(APP_BUNDLE)
