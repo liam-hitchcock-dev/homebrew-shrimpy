@@ -14,7 +14,7 @@ func writeHookScript() {
     let binaryPath = Bundle.main.bundlePath + "/Contents/MacOS/Shrimpy"
     let script = """
 #!/usr/bin/env python3
-import sys, json, os, subprocess
+import sys, json, os, subprocess, re
 data = json.load(sys.stdin)
 
 m = data.get('message', '') or 'Claude needs your input'
@@ -32,14 +32,16 @@ if transcript_path:
                 if obj.get('type') != 'user':
                     continue
                 content = obj.get('message', {}).get('content', '')
-                if isinstance(content, str) and content.strip():
-                    tab_title = content.strip()[:50]
-                    break
+                if isinstance(content, str):
+                    text = content.strip()
+                    if text and '<' not in text:
+                        tab_title = text[:50]
+                        break
                 elif isinstance(content, list):
                     for block in content:
                         if isinstance(block, dict) and block.get('type') == 'text':
                             text = block.get('text', '').strip()
-                            if text:
+                            if text and '<' not in text:
                                 tab_title = text[:50]
                                 break
                     if tab_title:

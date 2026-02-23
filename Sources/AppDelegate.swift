@@ -13,6 +13,8 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
     var historyWindowController: HistoryWindowController?
 
     var muteMenuItem: NSMenuItem?
+    var goToConversationMenuItem: NSMenuItem?
+    var conversationSeparatorItem: NSMenuItem?
     var lastTerminalBundleID: String?
     var hasPendingNotification = false
 
@@ -74,6 +76,22 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
         }
 
         let menu = NSMenu()
+
+        let goToItem = NSMenuItem(
+            title: "Go to Claude conversation",
+            action: #selector(goToConversation),
+            keyEquivalent: ""
+        )
+        goToItem.isHidden = true
+        goToItem.target = self
+        menu.addItem(goToItem)
+        goToConversationMenuItem = goToItem
+
+        let convSeparator = NSMenuItem.separator()
+        convSeparator.isHidden = true
+        menu.addItem(convSeparator)
+        conversationSeparatorItem = convSeparator
+
         menu.addItem(NSMenuItem(title: "Settings…", action: #selector(openSettings), keyEquivalent: ","))
 
         let muteItem = NSMenuItem(title: "Mute Notifications", action: #selector(toggleMute), keyEquivalent: "")
@@ -146,7 +164,14 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
     // MARK: - NSMenuDelegate
 
     func menuWillOpen(_ menu: NSMenu) {
+        let wasPending = hasPendingNotification
+        goToConversationMenuItem?.isHidden = !wasPending
+        conversationSeparatorItem?.isHidden = !wasPending
         updateStatusIcon(pending: false)
+    }
+
+    @objc func goToConversation() {
+        focusTerminal()
     }
 
     @objc func openSettings() {
