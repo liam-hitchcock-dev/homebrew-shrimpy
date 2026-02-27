@@ -3,7 +3,7 @@ APP_BUNDLE = $(APP_NAME).app
 INSTALL_DIR = /Applications
 SRC = $(wildcard Sources/*.swift)
 BINARY = $(APP_BUNDLE)/Contents/MacOS/$(APP_NAME)
-VERSION = 1.0.0
+VERSION = 1.1.0
 DEVELOPER_ID ?= Developer ID Application: Liam Hitchcock (C88QPDDXK4)
 APPLE_ID ?= your@email.com
 APPLE_TEAM_ID ?= C88QPDDXK4
@@ -20,7 +20,7 @@ endif
 export CLANG_MODULE_CACHE_PATH ?= $(CURDIR)/$(BUILD_MODULE_CACHE)
 export TMPDIR ?= $(CURDIR)/$(BUILD_TMP)/
 
-.PHONY: all build install sign notarize release clean codex codex-notify-test dev-restart
+.PHONY: all build install sign notarize release clean dev-restart
 
 all: build
 
@@ -75,12 +75,6 @@ install: sign
 
 clean:
 	rm -rf $(APP_BUNDLE)
-
-codex:
-	./scripts/codex-notify.sh $(ARGS)
-
-codex-notify-test:
-	./scripts/codex-notify.sh --test
 
 dev-restart: build
 	rm -rf $(INSTALL_DIR)/$(APP_BUNDLE)

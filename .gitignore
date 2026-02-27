@@ -1,3 +1,6 @@
 Shrimpy.app/
 *.zip
 *.dmg
+*.pcm
+*.swiftmodule
+/.build

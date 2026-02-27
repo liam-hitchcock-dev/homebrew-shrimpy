@@ -99,9 +99,6 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
         muteMenuItem = muteItem
 
         menu.addItem(NSMenuItem(title: "Notification History", action: #selector(openHistory), keyEquivalent: ""))
-        menu.addItem(NSMenuItem(title: "Test Notification", action: #selector(testNotification), keyEquivalent: ""))
-        let supportItem = NSMenuItem(title: "Support Shrimpy ☕", action: #selector(openSupport), keyEquivalent: "")
-        menu.addItem(supportItem)
         menu.addItem(NSMenuItem.separator())
         menu.addItem(NSMenuItem(title: "Quit", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q"))
 
@@ -191,17 +188,9 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
         NSApp.activate(ignoringOtherApps: true)
     }
 
-    @objc func testNotification() {
-        sendNotification(message: "This is a test notification")
-    }
-
     @objc func toggleMute() {
         notificationManager.isMuted = !notificationManager.isMuted
         muteMenuItem?.title = notificationManager.isMuted ? "Unmute Notifications" : "Mute Notifications"
-    }
-
-    @objc func openSupport() {
-        NSWorkspace.shared.open(URL(string: "https://buymeacoffee.com/liam.hitchcock")!)
     }
 
     // MARK: - UNUserNotificationCenter
