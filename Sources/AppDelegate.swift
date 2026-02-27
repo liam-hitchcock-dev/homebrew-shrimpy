@@ -211,6 +211,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
             options: []
         )
         center.setNotificationCategories([category])
+        center.requestAuthorization(options: [.alert, .sound]) { _, _ in }
     }
 
     func userNotificationCenter(
