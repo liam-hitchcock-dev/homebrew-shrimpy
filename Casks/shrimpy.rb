@@ -1,6 +1,6 @@
 cask "shrimpy" do
-  version "1.1.0"
-  sha256 "850e1060b7efdf1794d11b329579c8a080f4baa4730b761de2da03c9969f8d52"
+  version "1.1.1"
+  sha256 "25ff3c07c1be3af5fc51b5276e83ff7fe282dc6bfbbd4fa6ec63fda1082167ea"
 
   url "https://github.com/liam-hitchcock-dev/homebrew-shrimpy/releases/download/v#{version}/Shrimpy-#{version}.zip"
   name "Shrimpy"
